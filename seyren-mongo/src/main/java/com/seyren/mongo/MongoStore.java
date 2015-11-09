@@ -39,8 +39,11 @@ import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
+import com.mongodb.MongoClientOptions;
+import com.mongodb.MongoClientOptions.Builder;
 import com.mongodb.MongoException;
 import com.mongodb.WriteConcern;
+import com.mongodb.WriteResult;
 import com.seyren.core.util.config.SeyrenConfig;
 import com.seyren.core.util.hashing.TargetHash;
 import org.springframework.beans.factory.annotation.Value;
@@ -56,7 +59,7 @@ public class MongoStore implements ChecksStore, AlertsStore, SubscriptionsStore,
     private PasswordEncoder passwordEncoder;
     private final SeyrenConfig seyrenConfig;
     private MongoMapper mapper = new MongoMapper();
-    private DB mongo;
+    protected DB mongo;
 
     @Inject
     public MongoStore(PasswordEncoder passwordEncoder,
@@ -68,10 +71,18 @@ public class MongoStore implements ChecksStore, AlertsStore, SubscriptionsStore,
         this.adminPassword = adminPassword;
         this.serviceProvider = serviceProvider;
         this.seyrenConfig = seyrenConfig;
+				// If DB Connection timeout configured, leverage MongoClientOptions
         try {
             String uri = seyrenConfig.getMongoUrl();
             MongoClientURI mongoClientUri = new MongoClientURI(uri);
-            MongoClient mongoClient = new MongoClient(mongoClientUri);
+						if (seyrenConfig.getDatabaseSocketTimeout() > 0) {
+							Builder clientOptions = MongoClientOptions.builder();
+							clientOptions.socketTimeout(seyrenConfig.getDatabaseSocketTimeout());
+							MongoClient mongoClient = new MongoClient(mongoClientUri, clientOptions);
+						}
+						else {
+							MongoClient mongoClient = new MongoClient(mongoClientUri);
+						}
             DB mongo = mongoClient.getDB(mongoClientUri.getDatabase());
             mongo.setWriteConcern(WriteConcern.ACKNOWLEDGED);
             this.mongo = mongo;

@@ -91,6 +91,8 @@ public class SeyrenConfig {
     private final String scriptPath;
     private final String scriptType;
     private final String scriptResourceUrls;
+    private final int seyrenMongoTimeout; // Feature Mongo DB connection timeout.
+
     public SeyrenConfig() {
         
         // Base
@@ -184,6 +186,9 @@ public class SeyrenConfig {
         this.scriptPath = configOrDefault("SCRIPT_FILE_PATH", "/tmp");
         this.scriptType = configOrDefault("SCRIPT_TYPE", "python");
         this.scriptResourceUrls = configOrDefault("SCRIPT_RESOURCE_URLS", "ERROR: None Defined");
+
+				// DB Timeout
+				this.seyrenMongoTimeout = Integer.parseInt(configOrDefault("SEYREN_MONGO_TIMEOUT", "-1"));
     }
     
     @PostConstruct
@@ -479,6 +484,11 @@ public class SeyrenConfig {
     @JsonProperty("scriptResourceUrls")
     public String getScriptResourceUrls() {
         return scriptResourceUrls;
+    }
+
+    @JsonIgnore
+    public int getMongoTimeout() {
+        return seyrenMongoTimeout;
     }
 
 
