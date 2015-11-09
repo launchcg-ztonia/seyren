@@ -24,6 +24,8 @@ import javax.inject.Named;
 
 import org.apache.velocity.app.Velocity;
 import org.apache.velocity.runtime.RuntimeConstants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -90,9 +92,13 @@ public class SeyrenConfig {
     private final boolean securityEnabled;
     private final String scriptPath;
     private final String scriptType;
-    private final String scriptResourceUrls;
-    private final int seyrenMongoTimeout; // Feature Mongo DB connection timeout.
-
+	/** number of alerts, per check, to retain in the Mongo DB */
+	private int seyrenPreviousAlertsRetained;
+	/** The query timeout, in milliseconds */
+	private int seyrenMongoTimeout = 240000;
+	/** The logger, for output of info and error messages */
+	private static final Logger LOGGER = LoggerFactory.getLogger(SeyrenConfig.class);
+	
     public SeyrenConfig() {
         
         // Base
@@ -183,13 +189,33 @@ public class SeyrenConfig {
         this.securityEnabled = Boolean.parseBoolean(configOrDefault("SECURITY_ENABLED", "false"));
 
         // script
-        this.scriptPath = configOrDefault("SCRIPT_FILE_PATH", "/tmp");
+        this.scriptPath = configOrDefault("SCRIPT_FILE_PATH", "");
         this.scriptType = configOrDefault("SCRIPT_TYPE", "python");
-        this.scriptResourceUrls = configOrDefault("SCRIPT_RESOURCE_URLS", "ERROR: None Defined");
-
-				// DB Timeout
-				this.seyrenMongoTimeout = Integer.parseInt(configOrDefault("SEYREN_MONGO_TIMEOUT", "-1"));
+        
+        // data retention
+        String retainedAlerts = null;
+        try {
+        	retainedAlerts = configOrDefault("SEYREN_PREVIOUS_ALERTS_RETAINED", "-1");
+        	this.seyrenPreviousAlertsRetained = Integer.parseInt(retainedAlerts);
+        }
+        catch (NumberFormatException e){
+        	this.seyrenPreviousAlertsRetained = -1;
+        	LOGGER.error("Number format exception occurred for number of retained alerts: " + retainedAlerts);
+        }
+        
+        // Mongo socket timeout
+        
+        String mongoTimeout = null;
+        try {
+        	mongoTimeout = configOrDefault("SEYREN_MONGO_TIMEOUT", "-1");
+        	this.seyrenMongoTimeout = Integer.parseInt(mongoTimeout);
+        }
+        catch (NumberFormatException e){
+        	this.seyrenPreviousAlertsRetained = -1;
+        	LOGGER.error("Number format exception occurred for length of socket timeout: " + mongoTimeout);
+        }
     }
+    
     
     @PostConstruct
     public void init() {
@@ -471,7 +497,7 @@ public class SeyrenConfig {
         return securityEnabled;
     }
 
-    @JsonProperty("scriptPath")
+    @JsonIgnore
     public String getScriptPath() {
         return scriptPath;
     }
@@ -480,17 +506,18 @@ public class SeyrenConfig {
     public String getScriptType() {
         return scriptType;
     }
+   
     
-    @JsonProperty("scriptResourceUrls")
-    public String getScriptResourceUrls() {
-        return scriptResourceUrls;
-    }
-
     @JsonIgnore
-    public int getMongoTimeout() {
-        return seyrenMongoTimeout;
+    public int getRetainedPreviousAlerts() {
+        return this.seyrenPreviousAlertsRetained;
     }
-
+    
+    
+    @JsonIgnore
+    public int getDatabaseSocketTimeout() {
+        return this.seyrenMongoTimeout;
+    }
 
   private static String configOrDefault(String propertyName, String defaultValue) {
         return configOrDefault(list(propertyName), defaultValue);

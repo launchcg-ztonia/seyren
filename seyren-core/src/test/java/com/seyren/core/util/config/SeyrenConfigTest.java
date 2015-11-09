@@ -13,9 +13,6 @@
  */
 package com.seyren.core.util.config;
 
-import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.Matchers.*;
-
 import org.junit.Before;
 import org.junit.Test;
 
@@ -175,7 +172,7 @@ public class SeyrenConfigTest {
 
     @Test
     public void defaultSeyrenMongoTimeout() {
-        assertThat(config.getSeyrenMongoTimeout(), is(-1));
+        assertThat(config.getDatabaseSocketTimeout(), is(-1));
     }
     
 }
