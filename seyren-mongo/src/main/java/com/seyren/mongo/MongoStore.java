@@ -54,9 +54,9 @@ public class MongoStore implements ChecksStore, AlertsStore, SubscriptionsStore,
     private final String adminPassword;
     private final String serviceProvider;
     private PasswordEncoder passwordEncoder;
-    private final SeyrenConfig seyrenConfig;
+    protected final SeyrenConfig seyrenConfig;
     private MongoMapper mapper = new MongoMapper();
-    private DB mongo;
+    protected DB mongo;
 
     @Inject
     public MongoStore(PasswordEncoder passwordEncoder,
@@ -81,7 +81,35 @@ public class MongoStore implements ChecksStore, AlertsStore, SubscriptionsStore,
         }
     }
 
-    private void bootstrapMongo() {
+		/**
+     * Default constructor needed for TDD
+     * @param seyrenConfig A mocked config
+     */
+    protected MongoStore(SeyrenConfig seyrenConfig, DB mongo){
+    	this.seyrenConfig = seyrenConfig;
+    	this.adminUsername = "";
+        this.adminPassword = "";
+        this.serviceProvider = "";
+        this.mongo = mongo;
+    }
+    
+    /**
+     * Setter needed for proper TDD
+     * @param config A mocked SeyrenConfig
+     */
+    protected void setConfig(SeyrenConfig config){
+    	this.seyrenConfig = config;
+    }
+    
+    /**
+     * Getter needed for proper TDD
+     * @return
+     */
+    protected SeyrenConfig getConfig(){
+    	return this.seyrenConfig;
+    }
+
+    protected void bootstrapMongo() {
         LOGGER.info("Bootstrapping Mongo indexes. Depending on the number of checks and alerts you've got it may take a little while.");
         try {
             createIndices();
@@ -142,19 +170,19 @@ public class MongoStore implements ChecksStore, AlertsStore, SubscriptionsStore,
         }
     }
 
-    private DBCollection getChecksCollection() {
+    protected DBCollection getChecksCollection() {
         return mongo.getCollection("checks");
     }
 
-    private DBCollection getAlertsCollection() {
+    protected DBCollection getAlertsCollection() {
         return mongo.getCollection("alerts");
     }
 
-    private DBCollection getPermissionsCollection() {
+    protected DBCollection getPermissionsCollection() {
         return mongo.getCollection("permissions");
     }
 
-    private DBCollection getUsersCollection() {
+    protected DBCollection getUsersCollection() {
         return mongo.getCollection("users");
     }
 
@@ -345,16 +373,38 @@ public class MongoStore implements ChecksStore, AlertsStore, SubscriptionsStore,
 
     @Override
     public Alert getLastAlertForTargetOfCheck(String target, String checkId) {
+				int retainedPreviousAlerts = seyrenConfig.getRetainedPreviousAlerts();
+				int numAlertLimit;
+				int historyIndex; // Relative position of alert to now
+				if (retainedPreviousAlerts > 0) {
+					numAlertLimit = retainedPreviousAlerts + 2;
+				}
+				else {
+					numAlertLimit = 1;
+				}
         DBObject query = object("checkId", checkId).with("targetHash", TargetHash.create(target));
-        DBCursor cursor = getAlertsCollection().find(query).sort(object("timestamp", -1)).limit(1);
+        DBCursor cursor = getAlertsCollection().find(query).sort(object("timestamp", -1)).limit(numAlertLimit);
+				DBObject lastAlertDBO = null;
+				DBObject historicalAlertDBO = null;
         try {
+						historyIndex = 0
             while (cursor.hasNext()) {
-                return mapper.alertFrom(cursor.next());
+								historicalAlert = cursor.next();
+								if (lastAlert == null) {
+									lastAlert = mapper.alertFrom(historicalAlert);
+								}
+								else if ( historyIndex >= seyrenConfig.getRetainedPreviousAlerts()) {
+									WriteResult result = getAlertsCollection.remove(historicalAlert);
+									if (result.getN() != 1) {
+										LOGGER.error("Unable to delete overflow from alerts collection: " + historyIndex);	
+									}
+								}
+								historyIndex++;
             }
         } finally {
             cursor.close();
         }
-        return null;
+        return lastAlert;
     }
 
     @Override

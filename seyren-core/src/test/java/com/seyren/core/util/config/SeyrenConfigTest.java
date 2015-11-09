@@ -172,5 +172,10 @@ public class SeyrenConfigTest {
     public void defaultSecurityEnabledIsCorrect() {
         assertThat(config.isSecurityEnabled(), is(false));
     }
+
+    @Test
+    public void defaultRetainedPreviousAlerts() {
+        assertThat(config.getRetainedPreviousAlerts(), is(-1));
+    }
     
 }
