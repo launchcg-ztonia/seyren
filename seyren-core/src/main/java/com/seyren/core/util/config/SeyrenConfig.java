@@ -91,7 +91,7 @@ public class SeyrenConfig {
     private final String scriptPath;
     private final String scriptType;
     private final String scriptResourceUrls;
-		private final int retainedPreviousAlerts;
+    private int retainedPreviousAlerts;
 
     public SeyrenConfig() {
         
@@ -187,8 +187,8 @@ public class SeyrenConfig {
         this.scriptType = configOrDefault("SCRIPT_TYPE", "python");
         this.scriptResourceUrls = configOrDefault("SCRIPT_RESOURCE_URLS", "ERROR: None Defined");
 
-			  // Alert Retention
-				this.retainedPreviousAlerts = Integer.parseInt(configOrDefault("SEYREN_PREVIOUS_ALERTS_RETAINED"));
+		// Alert Retention
+		this.retainedPreviousAlerts = Integer.parseInt(configOrDefault("SEYREN_PREVIOUS_ALERTS_RETAINED", "-1"));
     }
     
     @PostConstruct
@@ -488,7 +488,7 @@ public class SeyrenConfig {
     
     @JsonIgnore
     public int getRetainedPreviousAlerts() {
-        return scriptResourceUrls;
+    	return this.retainedPreviousAlerts;
     }
 
 
@@ -544,5 +544,9 @@ public class SeyrenConfig {
         
         return baseParts;
     }
+
+	public void setPreviousAlertsRetained(int i) {
+		this.retainedPreviousAlerts = i;
+	}
 
 }
