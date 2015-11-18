@@ -41,6 +41,7 @@ import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
 import com.mongodb.MongoException;
 import com.mongodb.WriteConcern;
+import com.mongodb.WriteResult;
 import com.seyren.core.util.config.SeyrenConfig;
 import com.seyren.core.util.hashing.TargetHash;
 import org.springframework.beans.factory.annotation.Value;
@@ -54,7 +55,7 @@ public class MongoStore implements ChecksStore, AlertsStore, SubscriptionsStore,
     private final String adminPassword;
     private final String serviceProvider;
     private PasswordEncoder passwordEncoder;
-    protected final SeyrenConfig seyrenConfig;
+    private SeyrenConfig seyrenConfig;
     private MongoMapper mapper = new MongoMapper();
     protected DB mongo;
 
@@ -80,8 +81,8 @@ public class MongoStore implements ChecksStore, AlertsStore, SubscriptionsStore,
             throw new RuntimeException(e);
         }
     }
-
-		/**
+    
+    /**
      * Default constructor needed for TDD
      * @param seyrenConfig A mocked config
      */
@@ -373,38 +374,45 @@ public class MongoStore implements ChecksStore, AlertsStore, SubscriptionsStore,
 
     @Override
     public Alert getLastAlertForTargetOfCheck(String target, String checkId) {
-				int retainedPreviousAlerts = seyrenConfig.getRetainedPreviousAlerts();
-				int numAlertLimit;
-				int historyIndex; // Relative position of alert to now
-				if (retainedPreviousAlerts > 0) {
-					numAlertLimit = retainedPreviousAlerts + 2;
-				}
-				else {
-					numAlertLimit = 1;
-				}
+    	DBCollection alerts = getAlertsCollection();
         DBObject query = object("checkId", checkId).with("targetHash", TargetHash.create(target));
-        DBCursor cursor = getAlertsCollection().find(query).sort(object("timestamp", -1)).limit(numAlertLimit);
-				DBObject lastAlertDBO = null;
-				DBObject historicalAlertDBO = null;
+        int retainedPreviousAlerts = seyrenConfig.getRetainedPreviousAlerts();
+        DBCursor cursor = null;
+        if (retainedPreviousAlerts > 0){
+        	cursor = alerts.find(query).sort(object("timestamp", -1)).limit(retainedPreviousAlerts + 2);
+        }
+        else {
+        	cursor = alerts.find(query).sort(object("timestamp", -1)).limit(1);
+        }
+        DBObject mostRecentAlertObject = null;
+    	DBObject currentObject = null;
+        int counter = 0;
         try {
-						historyIndex = 0
+        	// Iterate through the result set
             while (cursor.hasNext()) {
-								historicalAlert = cursor.next();
-								if (lastAlert == null) {
-									lastAlert = mapper.alertFrom(historicalAlert);
-								}
-								else if ( historyIndex >= seyrenConfig.getRetainedPreviousAlerts()) {
-									WriteResult result = getAlertsCollection.remove(historicalAlert);
-									if (result.getN() != 1) {
-										LOGGER.error("Unable to delete overflow from alerts collection: " + historyIndex);	
-									}
-								}
-								historyIndex++;
+            	currentObject = cursor.next();
+            	// Get the first, and therefore the latest, one
+            	if (mostRecentAlertObject == null){
+            		mostRecentAlertObject = currentObject;
+            	}
+            	// All others, meant to be retained, skip them
+            	// Thsoe records beyond that, erase them 
+            	else if (counter >= retainedPreviousAlerts && retainedPreviousAlerts > 0){
+            		WriteResult result = alerts.remove(currentObject);
+            		if (result.getN() != 1){
+            			LOGGER.error("Unable to delete overflow alert from alerts collection: " + counter);
+            		}
+            	}
+            	counter++;
             }
         } finally {
             cursor.close();
         }
-        return lastAlert;
+        // Return the most recent alert, translated into the POJO instance
+        if (mostRecentAlertObject != null){
+        	return mapper.alertFrom(mostRecentAlertObject);
+        }
+        return null;
     }
 
     @Override
