@@ -113,6 +113,10 @@ public class MongoStore implements ChecksStore, AlertsStore, SubscriptionsStore,
         getChecksCollection().createIndex(new BasicDBObject("enabled", 1).append("live", 1));
         getAlertsCollection().createIndex(new BasicDBObject("timestamp", -1));
         getAlertsCollection().createIndex(new BasicDBObject("checkId", 1).append("targetHash", 1));
+        int ttl = this.seyrenConfig.getAlertsTTL();
+        if (ttl > 0){
+        	AlertsTTL.instance().apply(getChecksCollection());
+        } 
     }
 
     private void removeOldIndices() {

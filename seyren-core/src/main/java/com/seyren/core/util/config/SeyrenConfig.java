@@ -24,6 +24,8 @@ import javax.inject.Named;
 
 import org.apache.velocity.app.Velocity;
 import org.apache.velocity.runtime.RuntimeConstants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -32,6 +34,8 @@ import com.seyren.core.util.velocity.Slf4jLogChute;
 @Named
 public class SeyrenConfig {
     
+	 private static final Logger LOGGER = LoggerFactory.getLogger(SeyrenConfig.class);
+	
     private static final String DEFAULT_BASE_URL = "http://localhost:8080/seyren";
 
     private final String baseUrl;
@@ -91,7 +95,10 @@ public class SeyrenConfig {
     private final String scriptPath;
     private final String scriptType;
     private final String scriptResourceUrls;
-    public SeyrenConfig() {
+    /** The Alerts 'time to live' in seconds, or -1 for infinite */
+	private int alertsTTL;
+
+	public SeyrenConfig() {
         
         // Base
         this.baseUrl = stripEnd(configOrDefault("SEYREN_URL", DEFAULT_BASE_URL), "/");
@@ -184,6 +191,15 @@ public class SeyrenConfig {
         this.scriptPath = configOrDefault("SCRIPT_FILE_PATH", "/tmp");
         this.scriptType = configOrDefault("SCRIPT_TYPE", "python");
         this.scriptResourceUrls = configOrDefault("SCRIPT_RESOURCE_URLS", "ERROR: None Defined");
+        
+        // Time to Live for alert records
+        try {
+        	this.alertsTTL = Integer.parseInt(configOrDefault("SEYREN_ALERTS_TTL", "-1"));
+        }
+        catch (NumberFormatException nfe){
+        	this.alertsTTL = -1;
+        	LOGGER.error("Unable to establish Seyren alerts' 'Time to Live' attribute.",  nfe);
+        }
     }
     
     @PostConstruct
@@ -480,6 +496,14 @@ public class SeyrenConfig {
     public String getScriptResourceUrls() {
         return scriptResourceUrls;
     }
+    
+    /**
+     * Get the Alerts 'time to live' in seconds
+     * @return The time to live, in seconds, or -1 if it is infinite.
+     */
+    public int getAlertsTTL() {
+		return alertsTTL;
+	}
 
 
   private static String configOrDefault(String propertyName, String defaultValue) {
