@@ -1,5 +1,4 @@
 package com.seyren.mongo;
-import static com.seyren.mongo.NiceDBObject.object;
 import static org.junit.Assert.*;
 
 import java.util.ArrayList;
@@ -12,11 +11,7 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.crypto.password.StandardPasswordEncoder;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
@@ -27,7 +22,6 @@ import com.mongodb.Mongo;
 import com.mongodb.WriteResult;
 import com.seyren.core.domain.Alert;
 import com.seyren.core.util.config.SeyrenConfig;
-import com.seyren.core.util.hashing.TargetHash;
 
 public class DataRetentionTest {
 	
@@ -53,20 +47,7 @@ public class DataRetentionTest {
 	
 	@Before
 	public void setUp() throws Exception {
-		for (int i=0;i<12;i++){
-			BasicDBObject alertRecord = new BasicDBObject();
-			alertRecord.put("_id",Integer.toString(i));
-			alertRecord.put("warn","120");
-			alertRecord.put("toType","OK");
-			alertRecord.put("targetHash","�w}`pɪ�t���?%�");
-			alertRecord.put("fromType","WARN");
-			alertRecord.put("error","160");
-			alertRecord.put("checkId","-3556770559393616786");
-			alertRecord.put("value","40");
-			alertRecord.put("target","carbon.agents.HQEXPEDIALinux01-a.creates");
-			alertRecord.put("timestamp",new Date());
-			alerts.add(alertRecord);
-		}
+		
 		cursor = Mockito.mock(DBCursor.class);
 		Mockito.when(cursor.next()).thenAnswer(new Answer<DBObject>() {
 		     public DBObject answer(InvocationOnMock invocation) throws Throwable {
@@ -77,7 +58,7 @@ public class DataRetentionTest {
 		}); 
 		Mockito.when(cursor.hasNext()).thenAnswer(new Answer<Boolean>() {
 		     public Boolean answer(InvocationOnMock invocation) throws Throwable {
-		    	 if (currentIndex < (alerts.size() - 1)){
+		    	 if (currentIndex < (alerts.size())){
 		    		 return true;
 		    	 }
 		    	 else {
@@ -106,9 +87,9 @@ public class DataRetentionTest {
 		     }
 		});
 		alertsCollection = Mockito.mock(DBCollection.class);
-		Mockito.when(alertsCollection.remove(new BasicDBObject())).thenAnswer(new Answer<WriteResult>() {
+		Mockito.when(alertsCollection.remove(Mockito.any(DBObject.class))).thenAnswer(new Answer<WriteResult>() {
 		     public WriteResult answer(InvocationOnMock invocation) throws Throwable {
-		    	 System.out.println("Removing record #" + currentIndex);
+		    	 System.out.println("Removing record index #" + currentIndex);
 		    	 alerts.remove(currentIndex);
 		         return writeResult;
 		     }
@@ -172,25 +153,61 @@ public class DataRetentionTest {
 		     }
 		});
 	}
+	
+	private void initialize(){
+		currentIndex = 0;
+		retainedPreviousAlerts = -1;
+		mongoStore.setConfig(config);
+		alerts.clear();
+		for (int i=0;i<12;i++){
+			BasicDBObject alertRecord = new BasicDBObject();
+			alertRecord.put("_id",Integer.toString(i));
+			alertRecord.put("warn","120");
+			alertRecord.put("toType","OK");
+			alertRecord.put("targetHash","�w}`pɪ�t���?%�");
+			alertRecord.put("fromType","WARN");
+			alertRecord.put("error","160");
+			alertRecord.put("checkId","-3556770559393616786");
+			alertRecord.put("value","40");
+			alertRecord.put("target","carbon.agents.HQEXPEDIALinux01-a.creates");
+			alertRecord.put("timestamp",new Date());
+			alerts.add(alertRecord);
+		}
+	}
 
 
 	@After
 	public void tearDown() throws Exception {
 		
 	}
-
-	@Test
-	public void testRententionStrategy() {
-		retainedPreviousAlerts = -1;
-		mongoStore.setConfig(config);
+	
+	@Test 
+	public void testAlertRetrieval(){
+		initialize();
 		Alert alert = mongoStore.getLastAlertForTargetOfCheck("someTarget", "-3556770559393616786");
 		assertNotNull(alert);
+	}
+	
+	@Test
+	public void testAlertOrder(){
+		initialize();
+		Alert alert = mongoStore.getLastAlertForTargetOfCheck("someTarget", "-3556770559393616786");
 		assertEquals(alert.getId(),"0");
+	}
+	
+	@Test
+	public void testInfiniteRetention(){
+		initialize();
+		mongoStore.getLastAlertForTargetOfCheck("someTarget", "-3556770559393616786");
 		assertEquals(alerts.size(), 12);
-		config.setPreviousAlertsRetained(10);
+	}
+
+	@Test
+	public void testFiniteRententionStrategy() {
+		initialize();
+		retainedPreviousAlerts = 10;
 		mongoStore.getConfig().setPreviousAlertsRetained(10);
-		alert = mongoStore.getLastAlertForTargetOfCheck("someTarget", "-3556770559393616786");
-		System.out.println(alerts.size());
+		mongoStore.getLastAlertForTargetOfCheck("someTarget", "-3556770559393616786");
 		assertEquals(alerts.size(), 10);
 	}
 
