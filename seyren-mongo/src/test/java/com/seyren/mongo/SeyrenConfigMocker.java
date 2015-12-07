@@ -1,25 +1,17 @@
 package com.seyren.mongo;
 
+import java.io.IOException;
+import java.net.URL;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 
-import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.seyren.core.util.config.SeyrenConfig;
 
 public class SeyrenConfigMocker {
 	/** */
-	@Mock private static SeyrenConfig config;
-	/** */
-	private static SeyrenConfig defaultConfig = new SeyrenConfig();
-	/** */
-	private static Properties properties;
+	public static Properties properties;
 	/** */
 	public static final String ENVIRONEMNT_VARS = "ENVIRONEMNT_VARS";
 	/** */
@@ -86,12 +78,13 @@ public class SeyrenConfigMocker {
 	String currentConfigProfileName = "";
 	
 	
-	public static SeyrenConfig getConfig(String configProfileName){
-		
-		return config;
+	public static SeyrenConfig getConfig(String configFileName){
+		return createConfig(configFileName);
 	}
 	
-	private static SeyrenConfig createConfig(){
+	private static SeyrenConfig createConfig(String configFileName){
+		SeyrenConfig config = Mockito.mock(SeyrenConfig.class);
+		loadConfigProperties(configFileName);
 		Mockito.when(config.getBaseUrl()).thenReturn(SeyrenConfigMocker.properties.getProperty(SeyrenConfigMocker.BASE_URL));
 		Mockito.when(config.isBaseUrlSetToDefault()).thenReturn(Boolean.parseBoolean(SeyrenConfigMocker.properties.getProperty(SeyrenConfigMocker.IS_BASE_URL_DEFAULT)));
 		Mockito.when(config.getMongoUrl()).thenReturn(SeyrenConfigMocker.properties.getProperty(SeyrenConfigMocker.MONGO_URL));
@@ -145,11 +138,23 @@ public class SeyrenConfigMocker {
 		Mockito.when(config.getEmailTemplateFileName()).thenReturn(SeyrenConfigMocker.properties.getProperty(SeyrenConfigMocker.EMAIL_TEMPLATE_FILENAME));
 		Mockito.when(config.getEmailSubjectTemplateFileName()).thenReturn(SeyrenConfigMocker.properties.getProperty(SeyrenConfigMocker.EMAIL_SUBJECT_TEMPLATE_FILENAME));
 		Mockito.when(config.getVictorOpsRestEndpoint()).thenReturn(SeyrenConfigMocker.properties.getProperty(SeyrenConfigMocker.VICTOR_OPS_REST_ENDPOINT));
-		Mockito.when(config.isSecurityEnabled()).thenReturn(SeyrenConfigMocker.properties.getProperty(SeyrenConfigMocker.SECURITY_ENABLED));
+		Mockito.when(config.isSecurityEnabled()).thenReturn(Boolean.parseBoolean(SeyrenConfigMocker.properties.getProperty(SeyrenConfigMocker.SECURITY_ENABLED)));
 		Mockito.when(config.getScriptPath()).thenReturn(SeyrenConfigMocker.properties.getProperty(SeyrenConfigMocker.SCRIPT_PATH));
 		Mockito.when(config.getScriptType()).thenReturn(SeyrenConfigMocker.properties.getProperty(SeyrenConfigMocker.SCRIPT_TYPE));
 		Mockito.when(config.getScriptResourceUrls()).thenReturn(SeyrenConfigMocker.properties.getProperty(SeyrenConfigMocker.SCRIPT_RESOURCE_URLS));
-		Mockito.when(config.getAlertsTTL()).thenReturn(SeyrenConfigMocker.properties.getProperty(SeyrenConfigMocker.ALERTS_TTL));
-
+		Mockito.when(config.getAlertsTTL()).thenReturn(Integer.parseInt(SeyrenConfigMocker.properties.getProperty(SeyrenConfigMocker.ALERTS_TTL)));
+		return config;
+	}
+	
+	private static void loadConfigProperties(String fileName){
+		SeyrenConfigMocker.properties = new Properties();
+		URL url = SeyrenConfigMocker.class.getClassLoader().getResource("com/seyren/mongo/configs/" + fileName + ".properties");
+		try {
+			SeyrenConfigMocker.properties.load(url.openStream());
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 	}
 }
