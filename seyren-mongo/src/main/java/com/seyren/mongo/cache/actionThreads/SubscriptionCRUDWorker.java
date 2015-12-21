@@ -1,0 +1,68 @@
+package com.seyren.mongo.cache.actionThreads;
+
+import com.seyren.core.domain.Subscription;
+import com.seyren.mongo.MongoStore;
+
+public class SubscriptionCRUDWorker extends MongoAccessThread implements Runnable {
+	
+	private String checkId;
+	
+	private Subscription subscription;
+
+	private String subscriptionId;
+	
+	public SubscriptionCRUDWorker(MongoStore mongoStore) {
+		super(mongoStore);
+	}
+	
+	@Override
+	protected void convertParams(Object[] params) {
+		if (this.operationType == DELETE) {
+			this.deleteSubscription(this.checkId, this.subscriptionId);
+		}
+		else {
+			this.subscription = (Subscription)params[1];
+		}
+	}	
+
+	@Override
+	public void run() {
+		switch (this.operationType){
+			case CREATE: {
+				this.createSubscription(this.checkId, this.subscription);
+			}
+			case UPDATE: {
+				this.updateSubscription(this.checkId, this.subscription);
+			}
+			case DELETE: {
+				this.deleteSubscription(this.checkId, this.subscriptionId);
+			}
+		}
+	}
+
+	public String getCheckId() {
+		return checkId;
+	}
+
+	public void setCheckId(String checkId) {
+		this.checkId = checkId;
+	}
+
+	public Subscription getSubscription() {
+		return subscription;
+	}
+
+	public void setSubscription(Subscription subscription) {
+		this.subscription = subscription;
+	}
+
+	public String getSubscriptionId() {
+		return subscriptionId;
+	}
+
+	public void setSubscriptionId(String subscriptionId) {
+		this.subscriptionId = subscriptionId;
+	}
+	
+	
+}
