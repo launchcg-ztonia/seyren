@@ -11,7 +11,7 @@ import org.joda.time.DateTime;
 import com.seyren.core.domain.AlertType;
 import com.seyren.mongo.MongoStore;
 
-public class GLAFTOCWorker extends MongoAccessThread implements Runnable {
+public class GLAFTOCWorker extends MongoAccessThread {
 
 	private String target;
 	

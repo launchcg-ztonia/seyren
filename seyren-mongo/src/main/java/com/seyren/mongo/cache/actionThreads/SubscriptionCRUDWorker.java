@@ -3,7 +3,7 @@ package com.seyren.mongo.cache.actionThreads;
 import com.seyren.core.domain.Subscription;
 import com.seyren.mongo.MongoStore;
 
-public class SubscriptionCRUDWorker extends MongoAccessThread implements Runnable {
+public class SubscriptionCRUDWorker extends MongoAccessThread {
 	
 	private String checkId;
 	
@@ -17,11 +17,22 @@ public class SubscriptionCRUDWorker extends MongoAccessThread implements Runnabl
 	
 	@Override
 	protected void convertParams(Object[] params) {
-		if (this.operationType == DELETE) {
-			this.deleteSubscription(this.checkId, this.subscriptionId);
-		}
-		else {
-			this.subscription = (Subscription)params[1];
+		switch (this.operationType){
+			case CREATE: {
+					this.checkId = (String)params[0];
+					this.subscription = (Subscription)params[1];
+					return;
+				}
+			case UPDATE: {
+					this.checkId = (String)params[0];
+					this.subscription = (Subscription)params[1];
+					return;
+				}
+			case DELETE: {
+					this.checkId = (String)params[0];
+					this.subscriptionId = (String)params[1];
+					return;
+				}
 		}
 	}	
 

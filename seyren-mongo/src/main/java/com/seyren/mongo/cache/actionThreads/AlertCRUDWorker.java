@@ -6,7 +6,7 @@ import com.seyren.core.domain.Alert;
 import com.seyren.core.domain.Check;
 import com.seyren.mongo.MongoStore;
 
-public class AlertCRUDWorker extends MongoAccessThread implements Runnable {
+public class AlertCRUDWorker extends MongoAccessThread {
 
 	private Alert alert;
 	
@@ -28,6 +28,7 @@ public class AlertCRUDWorker extends MongoAccessThread implements Runnable {
 			case CREATE: {
 				this.checkId = (String)params[0];
 				this.alert = (Alert)params[1];
+				return;
 			}
 			case READ: {
 				if (params.length > 2){
@@ -35,9 +36,11 @@ public class AlertCRUDWorker extends MongoAccessThread implements Runnable {
 				}
 				start = (Integer)params[0];
 				items = (Integer)params[1];
+				return;
 			}
 			case DELETE: {
 				this.deleteAlerts(checkId, before);
+				return;
 			}
 		}
 	}	
@@ -45,20 +48,23 @@ public class AlertCRUDWorker extends MongoAccessThread implements Runnable {
 	@Override
 	public void run() {
 		switch (this.operationType){
-		case CREATE: {
-			this.createAlert(this.checkId, this.alert);
-		}
-		case READ: {
-			if (this.checkId == null){
-				this.getAlerts(start, items);
+			case CREATE: {
+				this.createAlert(this.checkId, this.alert);
+				return;
 			}
-			else {
-				this.getAlerts(this.checkId, this.start, this.items);
+			case READ: {
+				if (this.checkId == null){
+					this.getAlerts(start, items);
+				}
+				else {
+					this.getAlerts(this.checkId, this.start, this.items);
+				}
+				return;
 			}
-		}
-		case DELETE: {
-			this.deleteAlerts(checkId, before);
-		}
+			case DELETE: {
+				this.deleteAlerts(checkId, before);
+				return;
+			}
 		}
 	}
 

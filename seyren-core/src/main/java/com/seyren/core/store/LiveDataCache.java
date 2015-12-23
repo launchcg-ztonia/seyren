@@ -1,4 +1,4 @@
-package com.seyren.mongo.cache;
+package com.seyren.core.store;
 
 import java.util.List;
 import java.util.Set;

@@ -1,4 +1,4 @@
-package com.seyren.mongo.cache;
+package com.seyren.core.store;
 
 
 import java.util.ArrayList;
@@ -26,7 +26,7 @@ import com.seyren.core.util.config.SeyrenConfig;
  * @author WWarren
  *
  */
-public class DBQueueDataCache extends DataCache {
+public class NonQueuedDataCache extends DataCache {
 
 	private static final HashMap<String, Check> checksByID = new HashMap<String, Check>();
 	
@@ -40,16 +40,16 @@ public class DBQueueDataCache extends DataCache {
 	
 	public static int ALERT_HISTORY_THRESHOLD = 100;
 	
-	protected DBQueueDataCache(){
+	protected NonQueuedDataCache(){
 		initialize();
 	}
 
 	private void initialize() {
-		initializeChecks(mongoStore.getChecks(true, true));
-		initializeChecks(mongoStore.getChecks(false, true));
-		initializeChecks(mongoStore.getChecks(false, false));
-		initializeChecks(mongoStore.getChecks(true, false));
-		Iterator<Alert> alerts = mongoStore.getAlerts(0, ALERT_HISTORY_THRESHOLD).getValues().iterator();
+		initializeChecks(checksStore.getChecks(true, true));
+		initializeChecks(checksStore.getChecks(false, true));
+		initializeChecks(checksStore.getChecks(false, false));
+		initializeChecks(checksStore.getChecks(true, false));
+		Iterator<Alert> alerts = alertsStore.getAlerts(0, ALERT_HISTORY_THRESHOLD).getValues().iterator();
 		while (alerts.hasNext()){
 			Alert alert = alerts.next();
 			String key = alert.getCheckId() + alert.getTarget();
@@ -70,40 +70,6 @@ public class DBQueueDataCache extends DataCache {
 		}
 	}
 
-	public void setDBUpdatesEnabled(boolean enabled) {
-		this.databaseSyncEnabled = enabled;
-	}
-
-	@Override
-	public User addUser(User user) {
-		return this.mongoStore.addUser(user);
-	}
-
-	@Override
-	public String[] autoCompleteUsers(String userPattern) {
-		return this.mongoStore.autoCompleteUsers(userPattern);
-	}
-
-	@Override
-	public User getUser(String username) {
-		return this.mongoStore.getUser(username);
-	}
-
-	@Override
-	public SubscriptionPermissions getPermissions(String name) {
-		return this.mongoStore.getPermissions(name);
-	}
-
-	@Override
-	public void createPermissions(String name, String[] subscriptions) {
-		this.mongoStore.createPermissions(name, subscriptions);
-	}
-
-	@Override
-	public void updatePermissions(String name, String[] subscriptions) {
-		this.mongoStore.updatePermissions(name, subscriptions);
-	}
-	
 	//****** Begin proxied database functions ******
 
 	@Override
@@ -113,7 +79,7 @@ public class DBQueueDataCache extends DataCache {
 			check.getSubscriptions().add(subscription);
 		}
 		if (this.databaseSyncEnabled){
-			return this.mongoStore.createSubscription(checkId, subscription);
+			return subscriptionsStore.createSubscription(checkId, subscription);
 		}
 		else {
 			return subscription;

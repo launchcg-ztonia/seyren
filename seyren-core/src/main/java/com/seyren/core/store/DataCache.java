@@ -1,4 +1,4 @@
-package com.seyren.mongo.cache;
+package com.seyren.core.store;
 
 import java.util.List;
 import java.util.Set;
@@ -23,7 +23,6 @@ import com.seyren.core.store.PermissionsStore;
 import com.seyren.core.store.SubscriptionsStore;
 import com.seyren.core.store.UserStore;
 import com.seyren.core.util.config.SeyrenConfig;
-import com.seyren.mongo.MongoStore;
 
 /**
  * 
@@ -37,8 +36,16 @@ public abstract class DataCache implements ChecksStore, AlertsStore, Subscriptio
 	public static final int DB_QUEUE_DATA_CACHE = 1;
 
 	public static final int LIVE_DATA_CACHE = 2;
-
-	protected static MongoStore mongoStore;
+	
+	protected static AlertsStore alertsStore;
+	
+	protected static ChecksStore checksStore;
+	
+	protected static PermissionsStore permissionsStore;
+	
+	protected static UserStore usersStore;
+	
+	protected static SubscriptionsStore subscriptionsStore;
 
 	protected Boolean databaseSyncEnabled = true;
 	
@@ -51,22 +58,23 @@ public abstract class DataCache implements ChecksStore, AlertsStore, Subscriptio
 	protected DataCache(){
 	}	
 	
-	public static void init(){
+	public static void init(ChecksStore checksStore, AlertsStore alertsStore){
 		if (instance == null){
-			DataCache.mongoStore = mongoStore;
+			DataCache.checksStore = checksStore;
+			DataCache.alertsStore = alertsStore;
 			if (currentCacheType == DB_QUEUE_DATA_CACHE){
-				instance = new DBQueueDataCache();
+				DataCache.instance = new DBQueueDataCache();
 			}
 			else if (currentCacheType == NON_QUEUED_DATA_CACHE){
-				instance = new NonQueuedDataCache();
+				DataCache.instance = new NonQueuedDataCache();
 			}
 			else {
-				instance = new LiveDataCache();
+				DataCache.instance = new LiveDataCache();
 			}
 		}
 	}
 	
-	public static DataCache instance(MongoStore mongoStore){
+	public static DataCache instance(){
 		if (instance == null){
 			LOGGER.error("DataCache must be initialized before an instance can be referenced.");
 		}
@@ -79,111 +87,111 @@ public abstract class DataCache implements ChecksStore, AlertsStore, Subscriptio
 
 	@Override
 	public User addUser(User user) {
-		return this.mongoStore.addUser(user);
+		return this.usersStore.addUser(user);
 	}
 
 	@Override
 	public String[] autoCompleteUsers(String userPattern) {
-		return this.mongoStore.autoCompleteUsers(userPattern);
+		return this.usersStore.autoCompleteUsers(userPattern);
 	}
 
 	@Override
 	public User getUser(String username) {
-		return this.mongoStore.getUser(username);
+		return this.usersStore.getUser(username);
 	}
 
 	@Override
 	public SubscriptionPermissions getPermissions(String name) {
-		return this.mongoStore.getPermissions(name);
+		return this.permissionsStore.getPermissions(name);
 	}
 
 	@Override
 	public void createPermissions(String name, String[] subscriptions) {
-		this.mongoStore.createPermissions(name, subscriptions);
+		this.permissionsStore.createPermissions(name, subscriptions);
 	}
 
 	@Override
 	public void updatePermissions(String name, String[] subscriptions) {
-		this.mongoStore.updatePermissions(name, subscriptions);
+		this.permissionsStore.updatePermissions(name, subscriptions);
 	}
 
 	@Override
 	public Subscription createSubscription(String checkId, Subscription subscription) {
-		return this.mongoStore.createSubscription(checkId, subscription);
+		return this.subscriptionsStore.createSubscription(checkId, subscription);
 	}
 
 	@Override
 	public void deleteSubscription(String checkId, String subscriptionId) {
-		this.mongoStore.deleteSubscription(checkId, subscriptionId);
+		this.subscriptionsStore.deleteSubscription(checkId, subscriptionId);
 	}
 
 	@Override
 	public void updateSubscription(String checkId, Subscription subscription) {
-		this.mongoStore.updateSubscription(checkId, subscription);
+		this.subscriptionsStore.updateSubscription(checkId, subscription);
 	}
 
 	@Override
 	public Alert createAlert(String checkId, Alert alert) {
-		return this.mongoStore.createAlert(checkId, alert);
+		return this.alertsStore.createAlert(checkId, alert);
 	}
 
 	@Override
 	public SeyrenResponse<Alert> getAlerts(String checkId, int start, int items) {
-		return this.mongoStore.getAlerts(start, items);
+		return this.alertsStore.getAlerts(start, items);
 	}
 
 	@Override
 	public SeyrenResponse<Alert> getAlerts(int start, int items) {
-		return this.mongoStore.getAlerts(start, items);
+		return this.alertsStore.getAlerts(start, items);
 	}
 
 	@Override
 	public void deleteAlerts(String checkId, DateTime before) {
-		this.mongoStore.deleteAlerts(checkId, before);
+		this.alertsStore.deleteAlerts(checkId, before);
 	}
 
 	@Override
 	public Alert getLastAlertForTargetOfCheck(String target, String checkId) {
-		return this.mongoStore.getLastAlertForTargetOfCheck(target, checkId);
+		return this.alertsStore.getLastAlertForTargetOfCheck(target, checkId);
 	}
 
 	@Override
 	public SeyrenResponse getChecksByPattern(List<String> checkFields, List<Pattern> patterns, Boolean enabled) {
-		return this.mongoStore.getChecksByPattern(checkFields, patterns, enabled);
+		return this.checksStore.getChecksByPattern(checkFields, patterns, enabled);
 	}
 
 	@Override
 	public SeyrenResponse<Check> getChecks(Boolean enabled, Boolean live) {
-		return this.mongoStore.getChecks(enabled, live);
+		return this.checksStore.getChecks(enabled, live);
 	}
 
 	@Override
 	public SeyrenResponse<Check> getChecksByState(Set<String> states, Boolean enabled) {
-		return this.mongoStore.getChecksByState(states, enabled);
+		return this.checksStore.getChecksByState(states, enabled);
 	}
 
 	@Override
 	public Check getCheck(String checkId) {
-		return this.mongoStore.getCheck(checkId);
+		return this.checksStore.getCheck(checkId);
 	}
 
 	@Override
 	public void deleteCheck(String checkId) {
-		this.mongoStore.deleteCheck(checkId);
+		this.checksStore.deleteCheck(checkId);
 	}
 
 	@Override
 	public Check createCheck(Check check) {
-		return this.mongoStore.createCheck(check);
+		return this.checksStore.createCheck(check);
 	}
 
 	@Override
 	public Check saveCheck(Check check) {
-		return this.mongoStore.saveCheck(check);
+		return this.checksStore.saveCheck(check);
 	}
 
 	@Override
 	public Check updateStateAndLastCheck(String checkId, AlertType state, DateTime lastCheck) {
-		return this.mongoStore.updateStateAndLastCheck(checkId, state, lastCheck);
+		return this.checksStore.updateStateAndLastCheck(checkId, state, lastCheck);
 	}
 }

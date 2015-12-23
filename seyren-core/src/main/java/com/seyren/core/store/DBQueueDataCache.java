@@ -1,4 +1,4 @@
-package com.seyren.mongo.cache;
+package com.seyren.core.store;
 
 
 import java.util.ArrayList;
@@ -9,6 +9,8 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.joda.time.DateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -21,12 +23,17 @@ import com.seyren.core.domain.Subscription;
 import com.seyren.core.domain.SubscriptionPermissions;
 import com.seyren.core.domain.User;
 import com.seyren.core.util.config.SeyrenConfig;
+import com.seyren.mongo.cache.actionThreads.AlertCRUDWorker;
+import com.seyren.mongo.cache.actionThreads.CheckCRUDWorker;
+import com.seyren.mongo.cache.actionThreads.MongoAccessThread;
+import com.seyren.mongo.cache.actionThreads.SubscriptionCRUDWorker;
+import com.seyren.mongo.cache.actionThreads.USALCWorker;
 /**
  * 
  * @author WWarren
  *
  */
-public class NonQueuedDataCache extends DataCache {
+public class DBQueueDataCache extends DataCache {
 
 	private static final HashMap<String, Check> checksByID = new HashMap<String, Check>();
 	
@@ -40,16 +47,22 @@ public class NonQueuedDataCache extends DataCache {
 	
 	public static int ALERT_HISTORY_THRESHOLD = 100;
 	
-	protected NonQueuedDataCache(){
+	private static final ArrayList<MongoAccessThread> databaseQueue = new ArrayList<MongoAccessThread>();
+	
+	public static final int QUEUE_THRESHOLD = 50;
+	
+	private static final Logger LOGGER = LoggerFactory.getLogger(DataCache.class);
+	
+	protected DBQueueDataCache(){
 		initialize();
 	}
 
 	private void initialize() {
-		initializeChecks(mongoStore.getChecks(true, true));
-		initializeChecks(mongoStore.getChecks(false, true));
-		initializeChecks(mongoStore.getChecks(false, false));
-		initializeChecks(mongoStore.getChecks(true, false));
-		Iterator<Alert> alerts = mongoStore.getAlerts(0, ALERT_HISTORY_THRESHOLD).getValues().iterator();
+		initializeChecks(checksStore.getChecks(true, true));
+		initializeChecks(checksStore.getChecks(false, true));
+		initializeChecks(checksStore.getChecks(false, false));
+		initializeChecks(checksStore.getChecks(true, false));
+		Iterator<Alert> alerts = alertsStore.getAlerts(0, ALERT_HISTORY_THRESHOLD).getValues().iterator();
 		while (alerts.hasNext()){
 			Alert alert = alerts.next();
 			String key = alert.getCheckId() + alert.getTarget();
@@ -108,20 +121,27 @@ public class NonQueuedDataCache extends DataCache {
 
 	@Override
 	public Subscription createSubscription(String checkId, Subscription subscription) {
+		SubscriptionCRUDWorker worker = new SubscriptionCRUDWorker(DataCache.mongoStore);
+		worker.operationType = MongoAccessThread.CREATE;
+		worker.setCheckId(checkId);
+		worker.setSubscription(subscription);
+		databaseQueue.add(worker);
 		Check check = checksByID.get(checkId);
 		if (check != null){
 			check.getSubscriptions().add(subscription);
 		}
-		if (this.databaseSyncEnabled){
-			return this.mongoStore.createSubscription(checkId, subscription);
-		}
-		else {
-			return subscription;
-		}
+		this.checkIfQueueMustBeFlushed();
+		return subscription;
 	}
 
 	@Override
 	public void deleteSubscription(String checkId, String subscriptionId) {
+		SubscriptionCRUDWorker worker = new SubscriptionCRUDWorker(DataCache.mongoStore);
+		worker.operationType = MongoAccessThread.DELETE;
+		worker.setCheckId(checkId);
+		worker.setSubscriptionId(subscriptionId);
+		databaseQueue.add(worker);
+		DBQueueDataCache.databaseQueue.add(worker);
 		Check check = checksByID.get(checkId);
 		if (check != null){
 			Iterator<Subscription> checkSubs = check.getSubscriptions().iterator();
@@ -129,17 +149,20 @@ public class NonQueuedDataCache extends DataCache {
 				Subscription subscription = checkSubs.next();
 				if (subscription.getId().equals(subscriptionId)){
 					checkSubs.remove();
-					if (this.databaseSyncEnabled){
-						mongoStore.deleteSubscription(checkId, subscriptionId);
-					}
-					return;
 				}
 			}
 		}
+		this.checkIfQueueMustBeFlushed();
 	}
 
 	@Override
 	public void updateSubscription(String checkId, Subscription subscription) {
+		SubscriptionCRUDWorker worker = new SubscriptionCRUDWorker(DataCache.mongoStore);
+		worker.operationType = MongoAccessThread.UPDATE;
+		worker.setCheckId(checkId);
+		worker.setSubscription(subscription);
+		databaseQueue.add(worker);
+		DBQueueDataCache.databaseQueue.add(worker);
 		Check check = checksByID.get(checkId);
 		if (check != null){
 			List<Subscription> subs = check.getSubscriptions();
@@ -154,22 +177,21 @@ public class NonQueuedDataCache extends DataCache {
 				}
 			}
 		}
-		if (this.databaseSyncEnabled){
-			this.mongoStore.updateSubscription(checkId, subscription);
-		}
+		this.checkIfQueueMustBeFlushed();
 	}
 
 	@Override
 	public Alert createAlert(String checkId, Alert alert) {
+		AlertCRUDWorker worker = new AlertCRUDWorker(DataCache.mongoStore);
+		worker.operationType = MongoAccessThread.CREATE;
+		worker.setCheckId(checkId);
+		worker.setAlert(alert);
+		databaseQueue.add(worker);
 		String key = checkId + alert.getTarget();
 		mostRecentAlertByCheckAndTarget.put(key, alert);
 		alertsByCheckAndTarget.put(key, alert);
-		if (this.databaseSyncEnabled){
-			return this.mongoStore.createAlert(checkId, alert);
-		}
-		else {
-			return alert;
-		}
+		this.checkIfQueueMustBeFlushed();
+		return alert;
 	}
 
 	@Override
@@ -229,6 +251,11 @@ public class NonQueuedDataCache extends DataCache {
 
 	@Override
 	public void deleteAlerts(String checkId, DateTime before) {
+		AlertCRUDWorker worker = new AlertCRUDWorker(DataCache.mongoStore);
+		worker.operationType = MongoAccessThread.DELETE;
+		worker.setCheckId(checkId);
+		worker.setBefore(before);
+		databaseQueue.add(worker);
 		List<Alert> alerts = alertsByCheckId.get(checkId);
 		if (alerts != null){
 			Iterator<Alert> iterator = alerts.iterator();
@@ -239,9 +266,7 @@ public class NonQueuedDataCache extends DataCache {
 				}
 			}
 		}
-		if (this.databaseSyncEnabled){
-			this.mongoStore.deleteAlerts(checkId, before);
-		}
+		this.checkIfQueueMustBeFlushed();
 	}
 
 	@Override
@@ -291,6 +316,10 @@ public class NonQueuedDataCache extends DataCache {
 
 	@Override
 	public void deleteCheck(String checkId) {
+		CheckCRUDWorker worker = new CheckCRUDWorker(DataCache.mongoStore);
+		worker.operationType = MongoAccessThread.DELETE;
+		worker.setCheckId(checkId);
+		databaseQueue.add(worker);
 		checksByID.remove(checkId);
 		Iterator<Check> iterator = checksByState.values().iterator();
 		while (iterator.hasNext()){
@@ -299,47 +328,60 @@ public class NonQueuedDataCache extends DataCache {
 				iterator.remove();
 			}
 		}
-		if (this.databaseSyncEnabled){
-			this.mongoStore.deleteCheck(checkId);
-		}
+		this.checkIfQueueMustBeFlushed();
 	}
 
 	@Override
 	public Check createCheck(Check check) {
+		CheckCRUDWorker worker = new CheckCRUDWorker(DataCache.mongoStore);
+		worker.operationType = MongoAccessThread.CREATE;
+		worker.setCheck(check);
+		databaseQueue.add(worker);
 		checksByID.put(check.getId(), check);
 		checksByState.put(check.getState().toString(), check);
-		if (this.databaseSyncEnabled){
-			return this.mongoStore.createCheck(check);
-		}
-		else {
-			return check;
-		}
+		this.checkIfQueueMustBeFlushed();
+		return check;
 	}
 
 	@Override
 	public Check saveCheck(Check check) {
+		CheckCRUDWorker worker = new CheckCRUDWorker(DataCache.mongoStore);
+		worker.operationType = MongoAccessThread.CREATE;
+		worker.setCheck(check);
+		databaseQueue.add(worker);
 		checksByID.put(check.getId(), check);
 		checksByState.put(check.getState().toString(), check);
-		if (this.databaseSyncEnabled){
-			return this.mongoStore.saveCheck(check);
-		}
-		else {
-			return check;
-		}
+		this.checkIfQueueMustBeFlushed();
+		return check;
 	}
 
 	@Override
 	public Check updateStateAndLastCheck(String checkId, AlertType state, DateTime lastCheck) {
+		USALCWorker worker = new USALCWorker(DataCache.mongoStore);
+		worker.operationType = MongoAccessThread.UPDATE;
+		worker.setCheckId(checkId);
+		worker.setState(state);
+		worker.setLastCheck(lastCheck);
+		databaseQueue.add(worker);
 		Check check = checksByID.get(checkId);
 		check.setState(state);
 		check.setLastCheck(lastCheck);
 		checksByID.put(check.getId(), check);
 		checksByState.put(check.getState().toString(), check);
-		if (this.databaseSyncEnabled){
-			return this.mongoStore.updateStateAndLastCheck(checkId, state, lastCheck);
-		}
-		else {
-			return check;
+		this.checkIfQueueMustBeFlushed();
+		return check;
+	}
+	
+	public synchronized void checkIfQueueMustBeFlushed(){
+		if (databaseQueue.size() > QUEUE_THRESHOLD){
+			Iterator<MongoAccessThread> iterator = databaseQueue.iterator();
+			LOGGER.info("Database worker threshold reached, initiating queries.");
+			while (iterator.hasNext()){
+				MongoAccessThread worker = iterator.next();
+				Thread thread = new Thread(worker);
+				LOGGER.info("Starting database worker thread.");
+				thread.start();
+			}
 		}
 	}
 }

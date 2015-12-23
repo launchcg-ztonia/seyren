@@ -8,7 +8,7 @@ import org.joda.time.DateTime;
 import com.seyren.core.domain.AlertType;
 import com.seyren.mongo.MongoStore;
 
-public class GCBSWorker extends MongoAccessThread implements Runnable {
+public class GCBSWorker extends MongoAccessThread {
 
 	private Boolean enabled;
 	

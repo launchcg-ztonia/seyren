@@ -15,7 +15,7 @@ import com.seyren.core.domain.SubscriptionPermissions;
 import com.seyren.core.domain.User;
 import com.seyren.mongo.MongoStore;
 
-public abstract class MongoAccessThread {
+public abstract class MongoAccessThread implements Runnable {
 
 	protected final MongoStore mongoStore;
 	
