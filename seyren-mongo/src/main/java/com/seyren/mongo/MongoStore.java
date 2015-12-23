@@ -43,6 +43,8 @@ import com.mongodb.MongoException;
 import com.mongodb.WriteConcern;
 import com.seyren.core.util.config.SeyrenConfig;
 import com.seyren.core.util.hashing.TargetHash;
+import com.seyren.mongo.cache.DataCache;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -88,6 +90,7 @@ public class MongoStore implements ChecksStore, AlertsStore, SubscriptionsStore,
             removeOldIndices();
             addTargetHashToAlerts();
             createAdminUser();
+            
         } catch (MongoException e) {
             LOGGER.error("Failure while bootstrapping Mongo indexes.\n"
                     + "If you've hit this problem it's possible that you have two checks which are named the same and violate an index which we've tried to add.\n"
@@ -95,6 +98,9 @@ public class MongoStore implements ChecksStore, AlertsStore, SubscriptionsStore,
             throw new RuntimeException("Failed to bootstrap Mongo indexes. Please refer to the logs for more information.", e);
         }
         LOGGER.info("Done bootstrapping Mongo indexes.");
+        LOGGER.info("Instantiating caching optimizer.");
+        DataCache.instance(this);
+        LOGGER.info("Caching optimizer instantiated.");
     }
 
     private void createAdminUser() {

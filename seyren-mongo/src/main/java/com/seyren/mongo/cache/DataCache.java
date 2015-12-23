@@ -5,6 +5,8 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.joda.time.DateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -36,15 +38,40 @@ public abstract class DataCache implements ChecksStore, AlertsStore, Subscriptio
 
 	public static final int LIVE_DATA_CACHE = 2;
 
-	protected MongoStore mongoStore;
+	protected static MongoStore mongoStore;
 
 	protected Boolean databaseSyncEnabled = true;
+	
+	private static DataCache instance;
+	
+	private static int currentCacheType = LIVE_DATA_CACHE;
 
-	public DataCache(PasswordEncoder passwordEncoder, @Value("${admin.username}") String adminUsername,
-			@Value("${admin.password}") String adminPassword,
-			@Value("${authentication.service}") String serviceProvider, SeyrenConfig seyrenConfig) {
-		this.mongoStore = new MongoStore(passwordEncoder, adminUsername, adminPassword, serviceProvider, seyrenConfig);
+	private static final Logger LOGGER = LoggerFactory.getLogger(DataCache.class);
+	
+	protected DataCache(){
 	}	
+	
+	public static void init(){
+		if (instance == null){
+			DataCache.mongoStore = mongoStore;
+			if (currentCacheType == DB_QUEUE_DATA_CACHE){
+				instance = new DBQueueDataCache();
+			}
+			else if (currentCacheType == NON_QUEUED_DATA_CACHE){
+				instance = new NonQueuedDataCache();
+			}
+			else {
+				instance = new LiveDataCache();
+			}
+		}
+	}
+	
+	public static DataCache instance(MongoStore mongoStore){
+		if (instance == null){
+			LOGGER.error("DataCache must be initialized before an instance can be referenced.");
+		}
+		return instance;
+	}
 	
 	public void setDBUpdatesEnabled(boolean enabled) {
 		this.databaseSyncEnabled = enabled;

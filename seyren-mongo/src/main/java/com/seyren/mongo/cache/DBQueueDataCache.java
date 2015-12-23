@@ -26,7 +26,7 @@ import com.seyren.core.util.config.SeyrenConfig;
  * @author WWarren
  *
  */
-public class NonQueuedDataCache extends DataCache {
+public class DBQueueDataCache extends DataCache {
 
 	private static final HashMap<String, Check> checksByID = new HashMap<String, Check>();
 	
@@ -40,7 +40,7 @@ public class NonQueuedDataCache extends DataCache {
 	
 	public static int ALERT_HISTORY_THRESHOLD = 100;
 	
-	protected NonQueuedDataCache(){
+	protected DBQueueDataCache(){
 		initialize();
 	}
 

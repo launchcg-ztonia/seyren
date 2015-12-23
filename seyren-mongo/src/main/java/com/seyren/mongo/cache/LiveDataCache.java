@@ -5,8 +5,6 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.joda.time.DateTime;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.seyren.core.domain.Alert;
 import com.seyren.core.domain.AlertType;
@@ -15,19 +13,15 @@ import com.seyren.core.domain.SeyrenResponse;
 import com.seyren.core.domain.Subscription;
 import com.seyren.core.domain.SubscriptionPermissions;
 import com.seyren.core.domain.User;
-import com.seyren.core.util.config.SeyrenConfig;
 
 /**
  * 
  * @author WWarren
  *
  */
-public abstract class LiveDataCache extends DataCache {
+public class LiveDataCache extends DataCache {
 
-	public LiveDataCache(PasswordEncoder passwordEncoder, @Value("${admin.username}") String adminUsername,
-			@Value("${admin.password}") String adminPassword,
-			@Value("${authentication.service}") String serviceProvider, SeyrenConfig seyrenConfig) {
-		super(passwordEncoder, adminUsername, adminPassword, serviceProvider, seyrenConfig);
+	protected LiveDataCache(){
 	}
 
 	public void setDBUpdatesEnabled(boolean enabled) {
@@ -36,111 +30,111 @@ public abstract class LiveDataCache extends DataCache {
 
 	@Override
 	public User addUser(User user) {
-		return this.mongoStore.addUser(user);
+		return DataCache.mongoStore.addUser(user);
 	}
 
 	@Override
 	public String[] autoCompleteUsers(String userPattern) {
-		return this.mongoStore.autoCompleteUsers(userPattern);
+		return DataCache.mongoStore.autoCompleteUsers(userPattern);
 	}
 
 	@Override
 	public User getUser(String username) {
-		return this.mongoStore.getUser(username);
+		return DataCache.mongoStore.getUser(username);
 	}
 
 	@Override
 	public SubscriptionPermissions getPermissions(String name) {
-		return this.mongoStore.getPermissions(name);
+		return DataCache.mongoStore.getPermissions(name);
 	}
 
 	@Override
 	public void createPermissions(String name, String[] subscriptions) {
-		this.mongoStore.createPermissions(name, subscriptions);
+		DataCache.mongoStore.createPermissions(name, subscriptions);
 	}
 
 	@Override
 	public void updatePermissions(String name, String[] subscriptions) {
-		this.mongoStore.updatePermissions(name, subscriptions);
+		DataCache.mongoStore.updatePermissions(name, subscriptions);
 	}
 
 	@Override
 	public Subscription createSubscription(String checkId, Subscription subscription) {
-		return this.mongoStore.createSubscription(checkId, subscription);
+		return DataCache.mongoStore.createSubscription(checkId, subscription);
 	}
 
 	@Override
 	public void deleteSubscription(String checkId, String subscriptionId) {
-		this.mongoStore.deleteSubscription(checkId, subscriptionId);
+		DataCache.mongoStore.deleteSubscription(checkId, subscriptionId);
 	}
 
 	@Override
 	public void updateSubscription(String checkId, Subscription subscription) {
-		this.mongoStore.updateSubscription(checkId, subscription);
+		DataCache.mongoStore.updateSubscription(checkId, subscription);
 	}
 
 	@Override
 	public Alert createAlert(String checkId, Alert alert) {
-		return this.mongoStore.createAlert(checkId, alert);
+		return DataCache.mongoStore.createAlert(checkId, alert);
 	}
 
 	@Override
 	public SeyrenResponse<Alert> getAlerts(String checkId, int start, int items) {
-		return this.mongoStore.getAlerts(start, items);
+		return DataCache.mongoStore.getAlerts(start, items);
 	}
 
 	@Override
 	public SeyrenResponse<Alert> getAlerts(int start, int items) {
-		return this.mongoStore.getAlerts(start, items);
+		return DataCache.mongoStore.getAlerts(start, items);
 	}
 
 	@Override
 	public void deleteAlerts(String checkId, DateTime before) {
-		this.mongoStore.deleteAlerts(checkId, before);
+		DataCache.mongoStore.deleteAlerts(checkId, before);
 	}
 
 	@Override
 	public Alert getLastAlertForTargetOfCheck(String target, String checkId) {
-		return this.mongoStore.getLastAlertForTargetOfCheck(target, checkId);
+		return DataCache.mongoStore.getLastAlertForTargetOfCheck(target, checkId);
 	}
 
 	@Override
 	public SeyrenResponse getChecksByPattern(List<String> checkFields, List<Pattern> patterns, Boolean enabled) {
-		return this.mongoStore.getChecksByPattern(checkFields, patterns, enabled);
+		return DataCache.mongoStore.getChecksByPattern(checkFields, patterns, enabled);
 	}
 
 	@Override
 	public SeyrenResponse<Check> getChecks(Boolean enabled, Boolean live) {
-		return this.mongoStore.getChecks(enabled, live);
+		return DataCache.mongoStore.getChecks(enabled, live);
 	}
 
 	@Override
 	public SeyrenResponse<Check> getChecksByState(Set<String> states, Boolean enabled) {
-		return this.mongoStore.getChecksByState(states, enabled);
+		return DataCache.mongoStore.getChecksByState(states, enabled);
 	}
 
 	@Override
 	public Check getCheck(String checkId) {
-		return this.mongoStore.getCheck(checkId);
+		return DataCache.mongoStore.getCheck(checkId);
 	}
 
 	@Override
 	public void deleteCheck(String checkId) {
-		this.mongoStore.deleteCheck(checkId);
+		DataCache.mongoStore.deleteCheck(checkId);
 	}
 
 	@Override
 	public Check createCheck(Check check) {
-		return this.mongoStore.createCheck(check);
+		return DataCache.mongoStore.createCheck(check);
 	}
 
 	@Override
 	public Check saveCheck(Check check) {
-		return this.mongoStore.saveCheck(check);
+		return DataCache.mongoStore.saveCheck(check);
 	}
 
 	@Override
 	public Check updateStateAndLastCheck(String checkId, AlertType state, DateTime lastCheck) {
-		return this.mongoStore.updateStateAndLastCheck(checkId, state, lastCheck);
+		return DataCache.mongoStore.updateStateAndLastCheck(checkId, state, lastCheck);
 	}
 }
