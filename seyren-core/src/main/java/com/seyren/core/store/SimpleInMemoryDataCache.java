@@ -9,8 +9,6 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.joda.time.DateTime;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.seyren.core.domain.Alert;
@@ -18,32 +16,36 @@ import com.seyren.core.domain.AlertType;
 import com.seyren.core.domain.Check;
 import com.seyren.core.domain.SeyrenResponse;
 import com.seyren.core.domain.Subscription;
-import com.seyren.core.domain.SubscriptionPermissions;
-import com.seyren.core.domain.User;
-import com.seyren.core.util.config.SeyrenConfig;
+
 /**
- * 
+ * The Simple In Memory Cache uses a series of 
  * @author WWarren
  *
  */
-public class NonQueuedDataCache extends DataCache {
-
-	private static final HashMap<String, Check> checksByID = new HashMap<String, Check>();
-	
-	private static final ArrayListMultimap<String, Check> checksByState = ArrayListMultimap.create();
-	
-	private static final ArrayListMultimap<String, Alert> alertsByCheckAndTarget = ArrayListMultimap.create();
-
-	private static final ArrayListMultimap<String, Alert> alertsByCheckId = ArrayListMultimap.create();
-
-	static final HashMap<String, Alert> mostRecentAlertByCheckAndTarget = new HashMap<String, Alert>();
-	
+public class SimpleInMemoryDataCache extends DataCache {
+	/** A cache of checks, using the id as the key and the check itself as the value */
+	protected final HashMap<String, Check> checksByID = new HashMap<String, Check>();
+	/** A cache of checks, with the state of the Check as the key and the collection of checks 
+	 * sharing that same state as the value */
+	protected final ArrayListMultimap<String, Check> checksByState = ArrayListMultimap.create();
+	/** A cache of Alerts, which use the a concatenated String (check id + target), as the key, and the 
+	 * Alert itself as the value */
+	protected final ArrayListMultimap<String, Alert> alertsByCheckAndTarget = ArrayListMultimap.create();
+	/** A cache of Alerts, indexed by the id of the Check to which they pertain */
+	protected final ArrayListMultimap<String, Alert> alertsByCheckId = ArrayListMultimap.create();
+	/** A cache of the latest Alert for a given check/target.  The key is a concatenated String (check id + target), 
+	 * and the value is the most recent Alert. */
+	protected final HashMap<String, Alert> mostRecentAlertByCheckAndTarget = new HashMap<String, Alert>();
+	/** The threshold of past alerts to load into the cache upon initialization */
 	public static int ALERT_HISTORY_THRESHOLD = 100;
 	
-	protected NonQueuedDataCache(){
+	protected SimpleInMemoryDataCache(){
 		initialize();
 	}
 
+	/**
+	 * Load Checks and Alerts from the DB into the cache members of this class.
+	 */
 	private void initialize() {
 		initializeChecks(checksStore.getChecks(true, true));
 		initializeChecks(checksStore.getChecks(false, true));
@@ -61,6 +63,11 @@ public class NonQueuedDataCache extends DataCache {
 		}
 	}
 	
+	/**
+	 * Convenience method to iterate through a set of checks retrieved from the DB, storing them
+	 * in the appropriate data caches.
+	 * @param response The DB response produced by the initial query
+	 */
 	private void initializeChecks(SeyrenResponse<Check> response){
 		Iterator<Check> iterator = response.getValues().iterator();
 		while (iterator.hasNext()){
@@ -69,8 +76,6 @@ public class NonQueuedDataCache extends DataCache {
 			checksByState.put(check.getState().toString(), check);
 		}
 	}
-
-	//****** Begin proxied database functions ******
 
 	@Override
 	public Subscription createSubscription(String checkId, Subscription subscription) {
@@ -96,7 +101,7 @@ public class NonQueuedDataCache extends DataCache {
 				if (subscription.getId().equals(subscriptionId)){
 					checkSubs.remove();
 					if (this.databaseSyncEnabled){
-						mongoStore.deleteSubscription(checkId, subscriptionId);
+						subscriptionsStore.deleteSubscription(checkId, subscriptionId);
 					}
 					return;
 				}
@@ -121,7 +126,7 @@ public class NonQueuedDataCache extends DataCache {
 			}
 		}
 		if (this.databaseSyncEnabled){
-			this.mongoStore.updateSubscription(checkId, subscription);
+			this.subscriptionsStore.updateSubscription(checkId, subscription);
 		}
 	}
 
@@ -131,7 +136,7 @@ public class NonQueuedDataCache extends DataCache {
 		mostRecentAlertByCheckAndTarget.put(key, alert);
 		alertsByCheckAndTarget.put(key, alert);
 		if (this.databaseSyncEnabled){
-			return this.mongoStore.createAlert(checkId, alert);
+			return this.alertsStore.createAlert(checkId, alert);
 		}
 		else {
 			return alert;
@@ -206,7 +211,7 @@ public class NonQueuedDataCache extends DataCache {
 			}
 		}
 		if (this.databaseSyncEnabled){
-			this.mongoStore.deleteAlerts(checkId, before);
+			this.alertsStore.deleteAlerts(checkId, before);
 		}
 	}
 
@@ -217,12 +222,12 @@ public class NonQueuedDataCache extends DataCache {
 
 	@Override
 	public SeyrenResponse getChecksByPattern(List<String> checkFields, List<Pattern> patterns, Boolean enabled) {
-		return this.mongoStore.getChecksByPattern(checkFields, patterns, enabled);
+		return this.checksStore.getChecksByPattern(checkFields, patterns, enabled);
 	}
 
 	@Override
 	public SeyrenResponse<Check> getChecks(Boolean enabled, Boolean live) {
-		return this.mongoStore.getChecks(enabled, live);
+		return this.checksStore.getChecks(enabled, live);
 	}
 
 	@Override
@@ -266,7 +271,7 @@ public class NonQueuedDataCache extends DataCache {
 			}
 		}
 		if (this.databaseSyncEnabled){
-			this.mongoStore.deleteCheck(checkId);
+			this.checksStore.deleteCheck(checkId);
 		}
 	}
 
@@ -275,7 +280,7 @@ public class NonQueuedDataCache extends DataCache {
 		checksByID.put(check.getId(), check);
 		checksByState.put(check.getState().toString(), check);
 		if (this.databaseSyncEnabled){
-			return this.mongoStore.createCheck(check);
+			return this.checksStore.createCheck(check);
 		}
 		else {
 			return check;
@@ -287,7 +292,7 @@ public class NonQueuedDataCache extends DataCache {
 		checksByID.put(check.getId(), check);
 		checksByState.put(check.getState().toString(), check);
 		if (this.databaseSyncEnabled){
-			return this.mongoStore.saveCheck(check);
+			return this.checksStore.saveCheck(check);
 		}
 		else {
 			return check;
@@ -302,7 +307,7 @@ public class NonQueuedDataCache extends DataCache {
 		checksByID.put(check.getId(), check);
 		checksByState.put(check.getState().toString(), check);
 		if (this.databaseSyncEnabled){
-			return this.mongoStore.updateStateAndLastCheck(checkId, state, lastCheck);
+			return this.checksStore.updateStateAndLastCheck(checkId, state, lastCheck);
 		}
 		else {
 			return check;

@@ -1,17 +1,12 @@
-package com.seyren.mongo.cache.actionThreads;
+package com.seyren.core.store.workers;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Pattern;
 
-import org.joda.time.DateTime;
+import com.seyren.core.store.ChecksStore;
 
-import com.seyren.core.domain.AlertType;
-import com.seyren.mongo.MongoStore;
-
-public class GCBPWorker extends MongoAccessThread  {
+public class GCBPWorker extends StorageAccessWorker  {
 
 	private Boolean enabled;
 	
@@ -19,8 +14,8 @@ public class GCBPWorker extends MongoAccessThread  {
 	
 	private List<Pattern> patterns = new ArrayList<Pattern>();
 
-	public GCBPWorker(MongoStore mongoStore) {
-		super(mongoStore);
+	public GCBPWorker(ChecksStore store) {
+		this.setChecksStore(store);
 	}
 
 	@Override

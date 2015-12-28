@@ -43,7 +43,6 @@ import com.mongodb.MongoException;
 import com.mongodb.WriteConcern;
 import com.seyren.core.util.config.SeyrenConfig;
 import com.seyren.core.util.hashing.TargetHash;
-import com.seyren.mongo.cache.DataCache;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -99,7 +98,10 @@ public class MongoStore implements ChecksStore, AlertsStore, SubscriptionsStore,
         }
         LOGGER.info("Done bootstrapping Mongo indexes.");
         LOGGER.info("Instantiating caching optimizer.");
-        DataCache.instance(this);
+        DataCache.setCurrentCacheType(this.seyrenConfig.getDataCacheType());
+        DataCache.init(this, this, this, this, this);
+        DataCache.instance().setDBUpdatesEnabled(true);
+        
         LOGGER.info("Caching optimizer instantiated.");
     }
 

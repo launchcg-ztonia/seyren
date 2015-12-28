@@ -1,12 +1,17 @@
-package com.seyren.mongo.cache.actionThreads;
+package com.seyren.core.store.workers;
 
 import org.joda.time.DateTime;
 
 import com.seyren.core.domain.Alert;
-import com.seyren.core.domain.Check;
-import com.seyren.mongo.MongoStore;
+import com.seyren.core.store.AlertsStore;
 
-public class AlertCRUDWorker extends MongoAccessThread {
+/**
+ * The DB access thread that handles the create, read, update, and delete operations 
+ * for the Alert objects. 
+ * @author WWarren
+ *
+ */
+public class AlertCRUDWorker extends StorageAccessWorker {
 
 	private Alert alert;
 	
@@ -18,8 +23,8 @@ public class AlertCRUDWorker extends MongoAccessThread {
 	
 	private DateTime before;
 	
-	public AlertCRUDWorker(MongoStore mongoStore) {
-		super(mongoStore);
+	public AlertCRUDWorker(AlertsStore alertsStore) {
+		this.setAlertsStore(alertsStore);
 	}
 	
 	@Override

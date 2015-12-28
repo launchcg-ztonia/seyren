@@ -1,16 +1,22 @@
-package com.seyren.mongo.cache.actionThreads;
+package com.seyren.core.store.workers;
 
 import com.seyren.core.domain.Check;
-import com.seyren.mongo.MongoStore;
+import com.seyren.core.store.ChecksStore;
 
-public class CheckCRUDWorker extends MongoAccessThread {
+/**
+ * The DB access thread that handles the create, read, update, and delete operations 
+ * for the Check objects. 
+ * @author WWarren
+ *
+ */
+public class CheckCRUDWorker extends StorageAccessWorker {
 
 	private Check check;
 	
 	private String checkId;
 	
-	public CheckCRUDWorker(MongoStore mongoStore) {
-		super(mongoStore);
+	public CheckCRUDWorker(ChecksStore store) {
+		this.setChecksStore(store);
 	}
 	
 	@Override

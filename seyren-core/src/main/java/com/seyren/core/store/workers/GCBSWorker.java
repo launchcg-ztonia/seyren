@@ -1,21 +1,18 @@
-package com.seyren.mongo.cache.actionThreads;
+package com.seyren.core.store.workers;
 
 import java.util.HashSet;
 import java.util.Set;
 
-import org.joda.time.DateTime;
+import com.seyren.core.store.ChecksStore;
 
-import com.seyren.core.domain.AlertType;
-import com.seyren.mongo.MongoStore;
-
-public class GCBSWorker extends MongoAccessThread {
+public class GCBSWorker extends StorageAccessWorker {
 
 	private Boolean enabled;
 	
 	private Set<String> states;
 
-	public GCBSWorker(MongoStore mongoStore) {
-		super(mongoStore);
+	public GCBSWorker(ChecksStore checksStore) {
+		this.setChecksStore(checksStore);
 	}
 
 	@Override

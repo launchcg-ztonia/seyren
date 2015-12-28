@@ -1,9 +1,15 @@
-package com.seyren.mongo.cache.actionThreads;
+package com.seyren.core.store.workers;
 
 import com.seyren.core.domain.Subscription;
-import com.seyren.mongo.MongoStore;
+import com.seyren.core.store.SubscriptionsStore;
 
-public class SubscriptionCRUDWorker extends MongoAccessThread {
+/**
+ * The DB access thread that handles the create, read, update, and delete operations 
+ * for the Subscription objects. 
+ * @author WWarren
+ *
+ */
+public class SubscriptionCRUDWorker extends StorageAccessWorker {
 	
 	private String checkId;
 	
@@ -11,8 +17,8 @@ public class SubscriptionCRUDWorker extends MongoAccessThread {
 
 	private String subscriptionId;
 	
-	public SubscriptionCRUDWorker(MongoStore mongoStore) {
-		super(mongoStore);
+	public SubscriptionCRUDWorker(SubscriptionsStore store) {
+		this.setSubscriptionsStore(store);
 	}
 	
 	@Override

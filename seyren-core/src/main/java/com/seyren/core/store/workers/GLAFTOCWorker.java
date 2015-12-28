@@ -1,24 +1,15 @@
-package com.seyren.mongo.cache.actionThreads;
+package com.seyren.core.store.workers;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.regex.Pattern;
+import com.seyren.core.store.AlertsStore;
 
-import org.joda.time.DateTime;
-
-import com.seyren.core.domain.AlertType;
-import com.seyren.mongo.MongoStore;
-
-public class GLAFTOCWorker extends MongoAccessThread {
+public class GLAFTOCWorker extends StorageAccessWorker {
 
 	private String target;
 	
 	private String checkId;
 
-	public GLAFTOCWorker(MongoStore mongoStore) {
-		super(mongoStore);
+	public GLAFTOCWorker(AlertsStore alertsStore) {
+		this.setAlertsStore(alertsStore);
 	}
 
 	@Override

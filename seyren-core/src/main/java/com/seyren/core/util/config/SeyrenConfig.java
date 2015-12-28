@@ -91,6 +91,10 @@ public class SeyrenConfig {
     private final String scriptPath;
     private final String scriptType;
     private final String scriptResourceUrls;
+
+	private String dataCacheType;
+
+	private String databaseUpdatesEnabled;
     public SeyrenConfig() {
         
         // Base
@@ -184,6 +188,10 @@ public class SeyrenConfig {
         this.scriptPath = configOrDefault("SCRIPT_FILE_PATH", "/tmp");
         this.scriptType = configOrDefault("SCRIPT_TYPE", "python");
         this.scriptResourceUrls = configOrDefault("SCRIPT_RESOURCE_URLS", "ERROR: None Defined");
+        
+        // Data caching strategy
+        this.dataCacheType = configOrDefault("DATA_CACHE_TYPE", "2");
+        this.databaseUpdatesEnabled = configOrDefault("DATABASE_UPDATES_ENABLED", "true");
     }
     
     @PostConstruct
@@ -192,7 +200,11 @@ public class SeyrenConfig {
         Velocity.init();
     }
     
-    public String getBaseUrl() {
+    public int getDataCacheType() {
+		return Integer.parseInt(dataCacheType);
+	}
+
+	public String getBaseUrl() {
         return baseUrl;
     }
 
@@ -224,8 +236,13 @@ public class SeyrenConfig {
     public int getCheckExecutorTotalInstances() {
         return checkExecutorTotalInstances;
     }
+    
+   
+    public boolean getDatabaseUpdatesEnabled() {
+		return Boolean.parseBoolean(this.databaseUpdatesEnabled);
+	}
 
-    @JsonIgnore
+	@JsonIgnore
     public String getTwilioUrl() {
         return twilioUrl;
     }

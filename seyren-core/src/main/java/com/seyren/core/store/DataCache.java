@@ -7,8 +7,6 @@ import java.util.regex.Pattern;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.seyren.core.domain.Alert;
 import com.seyren.core.domain.AlertType;
@@ -22,58 +20,76 @@ import com.seyren.core.store.ChecksStore;
 import com.seyren.core.store.PermissionsStore;
 import com.seyren.core.store.SubscriptionsStore;
 import com.seyren.core.store.UserStore;
-import com.seyren.core.util.config.SeyrenConfig;
 
 /**
- * 
+ * The Data Cache provides an alternative means of interacting with the persistence layer of 
+ * the Seyren application.  Instead of writing and reading to/from the database directly, children
+ * of this class can reroute such operations in the name of efficiency.  Some child classes will
+ * draw data from a cache, while others will queue database operations in groups for subsequent 
+ * execution.
  * @author WWarren
  *
  */
 public abstract class DataCache implements ChecksStore, AlertsStore, SubscriptionsStore, PermissionsStore, UserStore {
-
-	public static final int NON_QUEUED_DATA_CACHE = 0;
-
+	/** The static flag to indicate the usage of the NonQueuedDataCache instance */
+	public static final int SIMPLE_IN_MEMORY_CACHE = 0;
+	/** The static flag to indicate the usage of the DBQueuedDataCache instance */
 	public static final int DB_QUEUE_DATA_CACHE = 1;
-
+	/** The static flag to indicate the usage of the LiveDataCache instance */
 	public static final int LIVE_DATA_CACHE = 2;
-	
-	protected static AlertsStore alertsStore;
-	
-	protected static ChecksStore checksStore;
-	
-	protected static PermissionsStore permissionsStore;
-	
-	protected static UserStore usersStore;
-	
-	protected static SubscriptionsStore subscriptionsStore;
-
+	/** A cached instance of the alerts store, providing DB access */
+	protected AlertsStore alertsStore;
+	/** A cached instance of the checks store, providing DB access */
+	protected ChecksStore checksStore;
+	/** A cached instance of the permissions store, providing DB access */
+	protected PermissionsStore permissionsStore;
+	/** A cached instance of the users store, providing DB access */
+	protected UserStore usersStore;
+	/** A cached instance of the subscriptions store, providing DB access */
+	protected SubscriptionsStore subscriptionsStore;
+	/** A flag which indicates whether requests will pass through to the persistence layer.  This 
+	 * switch can be useful for testing scenarios. */
 	protected Boolean databaseSyncEnabled = true;
-	
+	/** The singleton instance for this class */
 	private static DataCache instance;
-	
+	/** The current type of cache implemented by the instance */
 	private static int currentCacheType = LIVE_DATA_CACHE;
-
+	/** The logger used */
 	private static final Logger LOGGER = LoggerFactory.getLogger(DataCache.class);
-	
-	protected DataCache(){
-	}	
-	
-	public static void init(ChecksStore checksStore, AlertsStore alertsStore){
+
+	/**
+	 * Initializes the particular cache used for subsequent operations
+	 * @param usersStore The persistence module used to handle User data
+	 * @param permissionsStore The persistence module used to handle security and privilege data
+	 * @param altertsStore The persistence module used to handle Alert data
+	 * @param subscriptionsStore The persistence module used to handle Subscription data
+	 * @param checksStore The persistence module used to handle Check data
+	 */
+	public static void init(UserStore usersStore, PermissionsStore permissionsStore, AlertsStore altertsStore,
+			SubscriptionsStore subscriptionsStore, ChecksStore checksStore){
 		if (instance == null){
-			DataCache.checksStore = checksStore;
-			DataCache.alertsStore = alertsStore;
 			if (currentCacheType == DB_QUEUE_DATA_CACHE){
 				DataCache.instance = new DBQueueDataCache();
 			}
-			else if (currentCacheType == NON_QUEUED_DATA_CACHE){
-				DataCache.instance = new NonQueuedDataCache();
+			else if (currentCacheType == SIMPLE_IN_MEMORY_CACHE){
+				DataCache.instance = new SimpleInMemoryDataCache();
 			}
 			else {
 				DataCache.instance = new LiveDataCache();
 			}
 		}
+		DataCache.instance.usersStore = usersStore;
+		DataCache.instance.permissionsStore = permissionsStore;
+		DataCache.instance.alertsStore = altertsStore;
+		DataCache.instance.subscriptionsStore = subscriptionsStore;
+		DataCache.instance.checksStore = checksStore;
+		
 	}
 	
+	/**
+	 * Get the singleton instance of this class
+	 * @return The singleton instance
+	 */
 	public static DataCache instance(){
 		if (instance == null){
 			LOGGER.error("DataCache must be initialized before an instance can be referenced.");
@@ -81,6 +97,35 @@ public abstract class DataCache implements ChecksStore, AlertsStore, Subscriptio
 		return instance;
 	}
 	
+
+	public static int getCurrentCacheType() {
+		return currentCacheType;
+	}
+
+	public static void setCurrentCacheType(int currentCacheType) {
+		DataCache.currentCacheType = currentCacheType;
+	}
+
+	public AlertsStore getAlertsStore() {
+		return alertsStore;
+	}
+
+	public ChecksStore getChecksStore() {
+		return checksStore;
+	}
+
+	public PermissionsStore getPermissionsStore() {
+		return permissionsStore;
+	}
+
+	public UserStore getUsersStore() {
+		return usersStore;
+	}
+
+	public SubscriptionsStore getSubscriptionsStore() {
+		return subscriptionsStore;
+	}
+
 	public void setDBUpdatesEnabled(boolean enabled) {
 		this.databaseSyncEnabled = enabled;
 	}

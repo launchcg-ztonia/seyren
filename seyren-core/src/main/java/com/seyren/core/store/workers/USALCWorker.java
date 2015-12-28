@@ -1,11 +1,11 @@
-package com.seyren.mongo.cache.actionThreads;
+package com.seyren.core.store.workers;
 
 import org.joda.time.DateTime;
 
 import com.seyren.core.domain.AlertType;
-import com.seyren.mongo.MongoStore;
+import com.seyren.core.store.ChecksStore;
 
-public class USALCWorker extends MongoAccessThread {
+public class USALCWorker extends StorageAccessWorker {
 
 	private String checkId;
 	
@@ -13,8 +13,8 @@ public class USALCWorker extends MongoAccessThread {
 	
 	private DateTime lastCheck;
 
-	public USALCWorker(MongoStore mongoStore) {
-		super(mongoStore);
+	public USALCWorker(ChecksStore checksStore) {
+		this.setChecksStore(checksStore);
 	}
 
 	@Override
